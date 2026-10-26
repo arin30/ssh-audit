@@ -1,9 +1,28 @@
 import pytest
 
 from ssh_audit.ssh2_kexdb import SSH2_KexDB
+from ssh_audit.algorithm import Algorithm
+from ssh_audit.timeframe import Timeframe
 
 
 class Test_SSH2_KexDB:
+
+    @pytest.mark.parametrize('name, openssh_version', [
+        ('mlkem768x25519-sha256', '9.9'),
+        ('sntrup761x25519-sha512', '9.9'),
+        ('sntrup761x25519-sha512@openssh.com', '8.5'),
+    ])
+    def test_dropbear_post_quantum_kex(self, name, openssh_version):
+        versions = self.db['kex'][name][0]
+        assert Algorithm.get_since_text(versions) == (
+            'available since OpenSSH {}, Dropbear SSH 2025.87'.format(openssh_version)
+        )
+        timeframe = Timeframe().update(versions)
+        assert timeframe.get_from('Dropbear SSH', True) == '2025.87'
+        assert timeframe.get_from('Dropbear SSH', False) == '2025.87'
+        assert timeframe.get_from('OpenSSH', True) == openssh_version
+        assert timeframe.get_from('OpenSSH', False) == openssh_version
+        assert self.db['kex'][name][1:3] == [[], []]
 
     @pytest.fixture(autouse=True)
     def init(self):
